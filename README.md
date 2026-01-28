@@ -37,7 +37,42 @@ docker-compose exec app python init_db.py
 
 ## Установка
 
-### 🚀 Быстрая установка (3 шага)
+### 🚀 Установка с GitHub (самый простой способ)
+
+```bash
+# Вариант 1: Интерактивный режим (скрипт спросит данные)
+curl -fsSL https://raw.githubusercontent.com/USERNAME/REPO/main/scripts/install_from_github.sh | sudo bash
+
+# Вариант 2: С параметрами
+curl -fsSL https://raw.githubusercontent.com/USERNAME/REPO/main/scripts/install_from_github.sh | \
+  sudo bash -s -- USERNAME REPO_NAME [BRANCH]
+```
+
+**Пример:**
+```bash
+# Интерактивный режим
+curl -fsSL https://raw.githubusercontent.com/esovgirenko/proxy/main/scripts/install_from_github.sh | sudo bash
+
+# С параметрами
+curl -fsSL https://raw.githubusercontent.com/esovgirenko/proxy/main/scripts/install_from_github.sh | \
+  sudo bash -s -- esovgirenko proxy
+```
+
+**Или загрузите скрипт и запустите:**
+```bash
+wget https://raw.githubusercontent.com/esovgirenko/proxy/main/scripts/install_from_github.sh
+chmod +x install_from_github.sh
+sudo ./install_from_github.sh esovgirenko proxy
+```
+
+Скрипт автоматически:
+1. Загрузит проект с GitHub
+2. Установит все зависимости
+3. Настроит и запустит сервер
+
+**Подробная инструкция**: [INSTALL_FROM_GITHUB.md](INSTALL_FROM_GITHUB.md)
+
+### 📦 Локальная установка
 
 ```bash
 # 1. Скачайте проект на сервер
@@ -49,8 +84,6 @@ chmod +x scripts/install.sh && sudo ./scripts/install.sh
 # 3. Настройте SSL
 sudo /opt/proxy/scripts/setup_ssl.sh your-domain.com your-email@example.com
 ```
-
-**Готово!** Откройте `https://your-domain.com/docs` для API документации.
 
 **Краткая инструкция**: [INSTALL_QUICK.md](INSTALL_QUICK.md)  
 **Подробная инструкция**: [INSTALL.md](INSTALL.md)

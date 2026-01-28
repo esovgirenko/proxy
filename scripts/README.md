@@ -2,6 +2,30 @@
 
 ## Описание скриптов
 
+### install_from_github.sh
+**Установка напрямую с GitHub**
+
+Скрипт для автоматической загрузки проекта с GitHub и установки.
+
+**Использование:**
+```bash
+# Прямая загрузка и установка
+curl -fsSL https://raw.githubusercontent.com/USERNAME/REPO/main/scripts/install_from_github.sh | sudo bash
+
+# С параметрами
+curl -fsSL https://raw.githubusercontent.com/USERNAME/REPO/main/scripts/install_from_github.sh | \
+  sudo GITHUB_USER=USERNAME GITHUB_REPO_NAME=REPO bash
+```
+
+**Что делает:**
+- Загружает проект с GitHub
+- Копирует файлы в `/opt/proxy`
+- Запускает основной скрипт установки
+
+**Документация:** [../INSTALL_FROM_GITHUB.md](../INSTALL_FROM_GITHUB.md)
+
+---
+
 ### install.sh
 **Автоматическая установка прокси-сервера с нуля**
 
