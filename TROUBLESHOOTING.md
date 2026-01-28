@@ -6,40 +6,49 @@
 
 **Причина:** Старая версия `docker-compose` (v1) несовместима с Python 3.12+.
 
-**Решение 1: Использовать Docker Compose v2 (рекомендуется)**
+**Решение:** Использовать Docker Compose v2 через официальный репозиторий Docker.
 
-Docker Compose v2 входит в состав Docker и не требует Python:
-
+**Быстрое решение:**
 ```bash
-# Проверка версии
+# Использовать автоматический скрипт
+cd /path/to/proxy
+chmod +x scripts/fix_docker_compose.sh
+sudo ./scripts/fix_docker_compose.sh
+```
+
+**Или вручную:**
+```bash
+# 1. Удалить старую версию
+sudo apt-get remove -y docker-compose
+
+# 2. Установить зависимости
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg lsb-release
+
+# 3. Добавить официальный репозиторий Docker
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# 4. Установить Docker Compose plugin
+sudo apt-get update
+sudo apt-get install -y docker-compose-plugin
+
+# 5. Проверить
 docker compose version
-
-# Использование (обратите внимание на пробел, не дефис)
-docker compose up -d
-docker compose ps
-docker compose logs
 ```
 
-**Решение 2: Установить Docker Compose plugin**
+**Подробная инструкция:** [FIX_DOCKER_COMPOSE.md](FIX_DOCKER_COMPOSE.md)
 
-```bash
-# Удалить старую версию
-apt-get remove -y docker-compose
+### Ошибка: Unable to locate package docker-compose-plugin
 
-# Установить Docker Compose plugin
-apt-get install -y docker-compose-plugin
+**Причина:** Официальный репозиторий Docker не добавлен в систему.
 
-# Проверить
-docker compose version
-```
-
-**Решение 3: Установить python3-distutils (временное решение)**
-
-```bash
-apt-get install -y python3-distutils
-```
-
-Но лучше использовать Docker Compose v2.
+**Решение:** См. выше - нужно сначала добавить официальный репозиторий Docker.
 
 ### Обновление скриптов для использования Docker Compose v2
 
