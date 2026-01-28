@@ -1,0 +1,65 @@
+server:
+  host: "0.0.0.0"
+  port: 8080
+  workers: 4
+  log_level: "info"
+
+database:
+  host: "localhost"
+  port: 5432
+  name: "proxy_db"
+  user: "proxy_user"
+  password: "proxy_password"
+  pool_size: 20
+  max_overflow: 10
+
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+  password: ""
+  decode_responses: true
+
+jwt:
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
+  refresh_token_expire_days: 30
+  secret_key: "CHANGE_THIS_IN_PRODUCTION"
+
+security:
+  password_min_length: 8
+  password_require_uppercase: true
+  password_require_lowercase: true
+  password_require_digits: true
+  rate_limit_per_minute: 60
+  max_request_size_mb: 10
+
+proxy:
+  connect_timeout: 10
+  read_timeout: 30
+  max_connections_per_user: 100
+  enable_compression: true
+  keep_alive: true
+
+ios:
+  user_agent: "iOS/26.1"
+  allowed_origins: ["*"]
+  allowed_headers: ["Authorization", "Content-Type", "X-Requested-With"]
+
+cors:
+  allow_origins: ["*"]
+  allow_credentials: true
+  allow_methods: ["GET", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS"]
+  allow_headers: ["*"]
+
+logging:
+  format: "json"
+  level: "INFO"
+  file: "logs/app.log"
+  max_bytes: 10485760
+  backup_count: 5
+
+monitoring:
+  enable_metrics: true
+  metrics_port: 9090
+  health_check_interval: 30
