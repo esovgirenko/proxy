@@ -75,14 +75,53 @@ update_system() {
 install_packages() {
     log "Установка необходимых пакетов..."
     
+    # Установка Docker через официальный репозиторий
+    if ! command -v docker &> /dev/null; then
+        log "Установка Docker..."
+        # Удаляем старые версии
+        apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
+        
+        # Устанавливаем зависимости
+        apt-get install -y -qq \
+            ca-certificates \
+            curl \
+            gnupg \
+            lsb-release
+        
+        # Добавляем официальный GPG ключ Docker
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        chmod a+r /etc/apt/keyrings/docker.gpg
+        
+        # Добавляем репозиторий Docker
+        echo \
+          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+          $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+        
+        apt-get update -qq
+        
+        # Устанавливаем Docker и Docker Compose plugin
+        apt-get install -y -qq \
+            docker-ce \
+            docker-ce-cli \
+            containerd.io \
+            docker-buildx-plugin \
+            docker-compose-plugin
+    else
+        info "Docker уже установлен"
+        # Проверяем наличие docker compose plugin
+        if ! docker compose version &> /dev/null; then
+            log "Установка Docker Compose plugin..."
+            apt-get install -y -qq docker-compose-plugin
+        fi
+    fi
+    
+    # Установка остальных пакетов
     local packages=(
-        "docker.io"
-        "docker-compose"
         "nginx"
         "certbot"
         "python3-certbot-nginx"
         "git"
-        "curl"
         "wget"
         "ufw"
         "htop"
@@ -112,6 +151,17 @@ setup_docker() {
     # Проверка работы Docker
     if ! docker ps > /dev/null 2>&1; then
         error "Docker не запустился. Проверьте логи: journalctl -u docker"
+    fi
+    
+    # Проверка Docker Compose
+    if docker compose version > /dev/null 2>&1; then
+        log "Docker Compose v2 доступен"
+        DOCKER_COMPOSE_CMD="docker compose"
+    elif command -v docker-compose > /dev/null 2>&1; then
+        log "Используется Docker Compose v1 (legacy)"
+        DOCKER_COMPOSE_CMD="docker-compose"
+    else
+        error "Docker Compose не установлен"
     fi
     
     log "Docker настроен и запущен"
@@ -329,7 +379,15 @@ NGINX_EOF
 create_systemd_service() {
     log "Создание systemd сервиса..."
     
-    cat > /etc/systemd/system/proxy.service << 'SERVICE_EOF'
+    # Определяем команду docker compose
+    local compose_cmd
+    if docker compose version > /dev/null 2>&1; then
+        compose_cmd="/usr/bin/docker compose"
+    else
+        compose_cmd="/usr/bin/docker-compose"
+    fi
+    
+    cat > /etc/systemd/system/proxy.service << EOF
 [Unit]
 Description=Proxy Server with Authentication
 Requires=docker.service
@@ -339,16 +397,16 @@ After=docker.service
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/opt/proxy
-ExecStart=/usr/bin/docker-compose up -d
-ExecStop=/usr/bin/docker-compose down
-ExecReload=/usr/bin/docker-compose restart
+ExecStart=${compose_cmd} up -d
+ExecStop=${compose_cmd} down
+ExecReload=${compose_cmd} restart
 TimeoutStartSec=0
 Restart=on-failure
 RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
-SERVICE_EOF
+EOF
     
     systemctl daemon-reload
     systemctl enable proxy > /dev/null 2>&1
@@ -362,8 +420,15 @@ init_database() {
     
     cd /opt/proxy
     
+    # Определяем команду docker compose
+    if docker compose version > /dev/null 2>&1; then
+        DOCKER_COMPOSE_CMD="docker compose"
+    else
+        DOCKER_COMPOSE_CMD="docker-compose"
+    fi
+    
     # Запуск контейнеров БД и Redis
-    docker-compose up -d db redis
+    $DOCKER_COMPOSE_CMD up -d db redis
     
     # Ожидание готовности БД
     log "Ожидание готовности базы данных..."
@@ -371,7 +436,7 @@ init_database() {
     local attempt=0
     
     while [ $attempt -lt $max_attempts ]; do
-        if docker-compose exec -T db pg_isready -U proxy_user > /dev/null 2>&1; then
+        if $DOCKER_COMPOSE_CMD exec -T db pg_isready -U proxy_user > /dev/null 2>&1; then
             break
         fi
         attempt=$((attempt + 1))
@@ -383,10 +448,10 @@ init_database() {
     fi
     
     # Инициализация БД
-    if docker-compose exec -T app python init_db.py 2>/dev/null; then
+    if $DOCKER_COMPOSE_CMD exec -T app python init_db.py 2>/dev/null; then
         log "База данных инициализирована"
     else
-        warning "Ошибка при инициализации БД. Попробуйте вручную: docker-compose exec app python init_db.py"
+        warning "Ошибка при инициализации БД. Попробуйте вручную: $DOCKER_COMPOSE_CMD exec app python init_db.py"
     fi
 }
 
@@ -396,17 +461,24 @@ start_application() {
     
     cd /opt/proxy
     
+    # Определяем команду docker compose
+    if docker compose version > /dev/null 2>&1; then
+        DOCKER_COMPOSE_CMD="docker compose"
+    else
+        DOCKER_COMPOSE_CMD="docker-compose"
+    fi
+    
     # Запуск всех контейнеров
-    docker-compose up -d
+    $DOCKER_COMPOSE_CMD up -d
     
     # Ожидание запуска
     sleep 5
     
     # Проверка статуса
-    if docker-compose ps | grep -q "Up"; then
+    if $DOCKER_COMPOSE_CMD ps | grep -q "Up"; then
         log "Приложение запущено"
     else
-        warning "Возможны проблемы с запуском контейнеров. Проверьте: docker-compose ps"
+        warning "Возможны проблемы с запуском контейнеров. Проверьте: $DOCKER_COMPOSE_CMD ps"
     fi
 }
 
@@ -454,7 +526,11 @@ print_summary() {
     echo
     echo "🔧 Полезные команды:"
     echo "   - Статус: systemctl status proxy"
-    echo "   - Логи: docker-compose -f /opt/proxy/docker-compose.yml logs -f"
+    if docker compose version > /dev/null 2>&1; then
+        echo "   - Логи: docker compose -f /opt/proxy/docker-compose.yml logs -f"
+    else
+        echo "   - Логи: docker-compose -f /opt/proxy/docker-compose.yml logs -f"
+    fi
     echo "   - Перезапуск: systemctl restart proxy"
     echo "   - Бэкап: /opt/proxy/scripts/backup.sh"
     echo

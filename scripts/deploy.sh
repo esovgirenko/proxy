@@ -27,11 +27,43 @@ echo -e "${GREEN}Updating system packages...${NC}"
 apt-get update
 apt-get upgrade -y
 
-# Установка необходимых пакетов
+# Установка Docker через официальный репозиторий
+echo -e "${GREEN}Installing Docker...${NC}"
+if ! command -v docker &> /dev/null; then
+    # Удаляем старые версии
+    apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
+    
+    # Устанавливаем зависимости
+    apt-get install -y \
+        ca-certificates \
+        curl \
+        gnupg \
+        lsb-release
+    
+    # Добавляем официальный GPG ключ Docker
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+    
+    # Добавляем репозиторий Docker
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+    
+    apt-get update
+    
+    # Устанавливаем Docker и Docker Compose plugin
+    apt-get install -y \
+        docker-ce \
+        docker-ce-cli \
+        containerd.io \
+        docker-buildx-plugin \
+        docker-compose-plugin
+fi
+
+# Установка остальных пакетов
 echo -e "${GREEN}Installing required packages...${NC}"
 apt-get install -y \
-    docker.io \
-    docker-compose \
     nginx \
     certbot \
     python3-certbot-nginx \
@@ -109,8 +141,15 @@ nginx -t
 systemctl restart nginx
 systemctl enable nginx
 
+# Определяем команду docker compose для systemd
+if docker compose version > /dev/null 2>&1; then
+    COMPOSE_CMD="/usr/bin/docker compose"
+else
+    COMPOSE_CMD="/usr/bin/docker-compose"
+fi
+
 # Создание systemd сервиса для приложения
-cat > /etc/systemd/system/proxy.service << 'EOF'
+cat > /etc/systemd/system/proxy.service << EOF
 [Unit]
 Description=Proxy Server
 Requires=docker.service
@@ -120,8 +159,8 @@ After=docker.service
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/opt/proxy
-ExecStart=/usr/bin/docker-compose up -d
-ExecStop=/usr/bin/docker-compose down
+ExecStart=${COMPOSE_CMD} up -d
+ExecStop=${COMPOSE_CMD} down
 TimeoutStartSec=0
 
 [Install]
@@ -134,9 +173,17 @@ systemctl daemon-reload
 # Инициализация базы данных
 echo -e "${GREEN}Initializing database...${NC}"
 cd /opt/proxy
-docker-compose up -d db redis
+
+# Определяем команду docker compose
+if docker compose version > /dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
+else
+    DOCKER_COMPOSE_CMD="docker-compose"
+fi
+
+$DOCKER_COMPOSE_CMD up -d db redis
 sleep 10
-docker-compose exec -T app python init_db.py || echo "Database already initialized"
+$DOCKER_COMPOSE_CMD exec -T app python init_db.py || echo "Database already initialized"
 
 # Запуск приложения
 echo -e "${GREEN}Starting application...${NC}"

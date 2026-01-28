@@ -12,8 +12,15 @@ mkdir -p "$BACKUP_DIR"
 
 echo "Creating database backup..."
 
+# Определяем команду docker compose
+if docker compose version > /dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
+else
+    DOCKER_COMPOSE_CMD="docker-compose"
+fi
+
 # Резервное копирование PostgreSQL
-docker-compose -f /opt/proxy/docker-compose.yml exec -T db pg_dump -U proxy_user proxy_db | gzip > "$BACKUP_FILE"
+$DOCKER_COMPOSE_CMD -f /opt/proxy/docker-compose.yml exec -T db pg_dump -U proxy_user proxy_db | gzip > "$BACKUP_FILE"
 
 echo "Backup created: $BACKUP_FILE"
 
