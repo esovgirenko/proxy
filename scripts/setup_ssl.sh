@@ -19,6 +19,9 @@ fi
 if [ -z "$1" ]; then
     echo -e "${YELLOW}Usage: $0 <your-domain.com> [email]${NC}"
     echo "Example: $0 proxy.example.com admin@example.com"
+    echo
+    echo "Перед получением сертификата рекомендуется проверить предварительные условия:"
+    echo "  ./scripts/check_ssl_prerequisites.sh <domain>"
     exit 1
 fi
 
@@ -26,6 +29,15 @@ DOMAIN=$1
 EMAIL=${2:-"admin@${DOMAIN}"}
 
 echo -e "${GREEN}Setting up SSL certificate for ${DOMAIN}${NC}"
+echo
+info "Рекомендуется сначала проверить предварительные условия:"
+info "  ./scripts/check_ssl_prerequisites.sh ${DOMAIN}"
+echo
+read -p "Продолжить? (y/n): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    exit 0
+fi
 
 # Установка certbot если не установлен
 if ! command -v certbot &> /dev/null; then
@@ -69,15 +81,49 @@ EOF
     systemctl restart nginx
 fi
 
-# Получение сертификата
-echo -e "${GREEN}Obtaining SSL certificate...${NC}"
-certbot certonly \
-    --webroot \
-    --webroot-path=/var/www/certbot \
-    --email ${EMAIL} \
-    --agree-tos \
-    --no-eff-email \
-    --domains ${DOMAIN}
+# Проверка доступности домена
+echo -e "${GREEN}Проверка доступности домена...${NC}"
+if ! curl -I http://${DOMAIN} > /dev/null 2>&1; then
+    warning "Домен ${DOMAIN} недоступен через HTTP. Проверьте:"
+    echo "  1. DNS записи настроены правильно"
+    echo "  2. Порт 80 открыт в firewall"
+    echo "  3. Nginx запущен и слушает порт 80"
+    echo
+    read -p "Продолжить с standalone режимом? (y/n): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+    
+    # Использование standalone режима
+    echo -e "${GREEN}Получение сертификата в standalone режиме...${NC}"
+    echo -e "${YELLOW}ВНИМАНИЕ: Nginx будет временно остановлен!${NC}"
+    read -p "Продолжить? (y/n): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+    
+    systemctl stop nginx
+    certbot certonly \
+        --standalone \
+        --email ${EMAIL} \
+        --agree-tos \
+        --no-eff-email \
+        --domains ${DOMAIN} \
+        --preferred-challenges http
+    systemctl start nginx
+else
+    # Использование webroot режима
+    echo -e "${GREEN}Получение сертификата через webroot...${NC}"
+    certbot certonly \
+        --webroot \
+        --webroot-path=/var/www/certbot \
+        --email ${EMAIL} \
+        --agree-tos \
+        --no-eff-email \
+        --domains ${DOMAIN}
+fi
 
 # Обновление конфигурации Nginx
 echo -e "${GREEN}Updating Nginx configuration...${NC}"
