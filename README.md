@@ -39,38 +39,40 @@ docker-compose exec app python init_db.py
 
 ### 🚀 Установка с GitHub (самый простой способ)
 
-```bash
-# Вариант 1: Интерактивный режим (скрипт спросит данные)
-curl -fsSL https://raw.githubusercontent.com/USERNAME/REPO/main/scripts/install_from_github.sh | sudo bash
+**Рекомендуемый способ - клонирование репозитория:**
 
-# Вариант 2: С параметрами
-curl -fsSL https://raw.githubusercontent.com/USERNAME/REPO/main/scripts/install_from_github.sh | \
-  sudo bash -s -- USERNAME REPO_NAME [BRANCH]
+```bash
+# Установить git и клонировать репозиторий
+sudo apt-get update && sudo apt-get install -y git
+git clone https://github.com/esovgirenko/proxy.git /opt/proxy
+cd /opt/proxy
+sudo ./scripts/install.sh
 ```
 
-**Пример:**
-```bash
-# Интерактивный режим
-curl -fsSL https://raw.githubusercontent.com/esovgirenko/proxy/main/scripts/install_from_github.sh | sudo bash
+**Или одной командой:**
 
-# С параметрами
-curl -fsSL https://raw.githubusercontent.com/esovgirenko/proxy/main/scripts/install_from_github.sh | \
-  sudo bash -s -- esovgirenko proxy
+```bash
+sudo bash -c "
+  apt-get update -qq && apt-get install -y -qq git
+  git clone https://github.com/esovgirenko/proxy.git /opt/proxy
+  cd /opt/proxy
+  chmod +x scripts/install.sh
+  ./scripts/install.sh
+"
 ```
 
-**Или загрузите скрипт и запустите:**
+**Альтернатива - загрузка архива:**
+
 ```bash
-wget https://raw.githubusercontent.com/esovgirenko/proxy/main/scripts/install_from_github.sh
-chmod +x install_from_github.sh
-sudo ./install_from_github.sh esovgirenko proxy
+wget https://github.com/esovgirenko/proxy/archive/refs/heads/main.zip
+unzip main.zip
+cd proxy-main
+chmod +x scripts/install.sh
+sudo ./scripts/install.sh
 ```
 
-Скрипт автоматически:
-1. Загрузит проект с GitHub
-2. Установит все зависимости
-3. Настроит и запустит сервер
-
-**Подробная инструкция**: [INSTALL_FROM_GITHUB.md](INSTALL_FROM_GITHUB.md)
+**Подробная инструкция**: [INSTALL_FROM_GITHUB.md](INSTALL_FROM_GITHUB.md)  
+**Решение проблемы 404**: [INSTALL_GITHUB_FIX.md](INSTALL_GITHUB_FIX.md)
 
 ### 📦 Локальная установка
 
